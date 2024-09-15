@@ -4,12 +4,13 @@
 #include <cstdint>
 #include <iostream>
 
-#define NUM_OF_OBJS 100000
+#define NUM_OF_OBJS 10000000
 
 struct ColdData
 {
     ColdData(bool f0, float f1, double f2, std::string&& f3, std::string&& f4)
-        : field0(f0), field1(f1), field2(f2), field3(std::move(f3)), field4(std::move(f4)) {}
+        : field0(f0), field1(f1), field2(f2), 
+          field3(std::move(f3)), field4(std::move(f4)) {}
     bool field0;
     float field1;
     double field2;
@@ -17,15 +18,22 @@ struct ColdData
     std::string field4;
 };
 
-class TestClass
+struct TestClass
     : public CacheEntry<int, ColdData> 
 {
-public:
-    TestClass(): CacheEntry<int, ColdData>(0) {}
+    TestClass(): CacheEntry<int, ColdData>(0)
+    {
+        initColdData(false, 1.0, 2.0, "Hello", "World");
+    }
 };
 
 struct ControlClass
 {
+    ControlClass(): 
+        field0(false), field1(10), 
+        field2(1.0), field3(2.0), 
+        field4("Hello"), field5("World") {}
+
     bool field0;
     int field1;
     float field2;
@@ -36,7 +44,7 @@ struct ControlClass
 
 uint64_t benchmark_test()
 {
-    TestClass test[NUM_OF_OBJS];
+    TestClass* test = new TestClass[NUM_OF_OBJS];
     auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
@@ -48,14 +56,15 @@ uint64_t benchmark_test()
         sum += test[i].getHotData();
     }
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    std::cout << "Time spent: " << duration.count() << " ns" << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Time spent: " << duration.count() << " ms" << std::endl;
+    delete[] test;
     return sum;
 }
 
 uint64_t benchmark_control()
 {
-    ControlClass control[NUM_OF_OBJS];
+    ControlClass* control = new ControlClass[NUM_OF_OBJS];
     auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
@@ -67,15 +76,15 @@ uint64_t benchmark_control()
         sum += control[i].field1;
     }
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    std::cout << "Time spent: " << duration.count() << " ns" << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Time spent: " << duration.count() << " ms" << std::endl;
+    delete[] control;
     return sum;
 }
 
 int main(int argc, char* argv[])
 {
     uint64_t res;
-    std::chrono::duration<long long, std::ratio<1, 1000>> duration;
     if (strcmp(argv[0], "test") == 0)
     {
         res = benchmark_test();
