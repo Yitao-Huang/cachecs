@@ -1,42 +1,39 @@
 #include <cassert>
-#include "../src/cache_entry.h"
+#include <string>
+#include "../src/CacheEntry.h"
 
-struct test_class
+
+struct ColdData
 {
-    cache_entry<bool> field0;
-    cache_entry<int> field1;
-    cache_entry<float> field2;
-    cache_entry<double> field3;
-    cache_entry<std::string> field4;
+    ColdData(bool f0, float f1, double f2, std::string&& f3)
+        : field0(f0), field1(f1), field2(f2), field3(std::move(f3)) {}
+    bool field0;
+    float field1;
+    double field2;
+    std::string field3;
+};
+
+class TestClass
+    : public CacheEntry<int, ColdData> 
+{
+public:
+    TestClass(): CacheEntry<int, ColdData>(10) {}
 };
 
 int main()
 {
-    test_class t[2];
+    TestClass t;
 
-    t[0].field0.set(true);
-    t[1].field0.set(false);
-    bool f0;
-    t[0].field0.get(f0);
-    assert(f0);
-    t[1].field0.get(f0);
-    assert(!f0);
+    assert(t.getHotData() == 10);
+    t.getHotData() = 20;
+    assert(t.getHotData() == 20);
 
-    t[0].field1.set(20);
-    t[1].field1.set(50);
-    int f1;
-    t[0].field1.get(f1);
-    assert(f1 == 20);
-    t[1].field1.get(f1);
-    assert(f1 == 50);
+    t.initColdData(false, 1.0, 2.0, "Hello World");
+    assert(t.getColdData().field0 == false);
+    assert(t.getColdData().field3 == "Hello World");
 
-    t[0].field4.set("Hello");
-    t[1].field4.set("World");
-    std::string f4;
-    t[0].field4.get(f4);
-    assert(f4 == "Hello");
-    t[1].field4.get(f4);
-    assert(f4 == "World");
+    t.getColdData().field1 = 3.0;
+    assert(t.getColdData().field1 == 3.0);
 
     return 0;
 }

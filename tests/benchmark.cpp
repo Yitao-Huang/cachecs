@@ -1,71 +1,91 @@
-#include "../src/cache_entry.h"
+#include "../src/CacheEntry.h"
 #include <cstddef>
+#include <chrono>
+#include <cstdint>
+#include <iostream>
 
-#define NUM_OF_OBJS 1000000
+#define NUM_OF_OBJS 100000
 
-struct test_class
+struct ColdData
 {
-    cache_entry<bool> field0;
-    cache_entry<int> field1;
-    cache_entry<float> field2;
-    cache_entry<float> field3;
-    cache_entry<double> field4;
-    cache_entry<double> field5;
-    cache_entry<std::string> field6;
-    cache_entry<std::string> field7;
+    ColdData(bool f0, float f1, double f2, std::string&& f3, std::string&& f4)
+        : field0(f0), field1(f1), field2(f2), field3(std::move(f3)), field4(std::move(f4)) {}
+    bool field0;
+    float field1;
+    double field2;
+    std::string field3;
+    std::string field4;
 };
 
-struct control_class
+class TestClass
+    : public CacheEntry<int, ColdData> 
+{
+public:
+    TestClass(): CacheEntry<int, ColdData>(0) {}
+};
+
+struct ControlClass
 {
     bool field0;
     int field1;
     float field2;
-    float field3;
-    double field4;
-    double field5;
-    std::string field6;
-    std::string field7;
+    double field3;
+    std::string field4;
+    std::string field5;
 };
 
-void benchmark_test()
+uint64_t benchmark_test()
 {
-    test_class test[NUM_OF_OBJS];
+    TestClass test[NUM_OF_OBJS];
+    auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
-        test[i].field1.set(i);
+        test[i].getHotData() = i;
     }
-    int sum = 0, cur;
+    uint64_t sum = 0;
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
-        test[i].field1.get(cur);
-        sum += cur;
+        sum += test[i].getHotData();
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    std::cout << "Time spent: " << duration.count() << " ns" << std::endl;
+    return sum;
 }
 
-void benchmark_control()
+uint64_t benchmark_control()
 {
-    control_class control[NUM_OF_OBJS];
+    ControlClass control[NUM_OF_OBJS];
+    auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
         control[i].field1 = i;
     }
-    int sum = 0, cur;
+    uint64_t sum = 0;
     for (size_t i = 0; i < NUM_OF_OBJS; i++)
     {
         sum += control[i].field1;
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    std::cout << "Time spent: " << duration.count() << " ns" << std::endl;
+    return sum;
 }
 
 int main(int argc, char* argv[])
 {
+    uint64_t res;
+    std::chrono::duration<long long, std::ratio<1, 1000>> duration;
     if (strcmp(argv[0], "test") == 0)
     {
-        benchmark_test();
+        res = benchmark_test();
     }
     else 
     {
-        benchmark_control();
+        res = benchmark_control();
     }
+
+    std::cout << "Result: " << res << std::endl;
 
     return 0;
 }
