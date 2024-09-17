@@ -1,100 +1,62 @@
 #include "../src/CacheEntry.h"
-#include <cstddef>
 #include <chrono>
-#include <cstdint>
 #include <iostream>
 
-#define NUM_OF_OBJS 10000000
+struct ControlClass {
+    std::uint32_t value;
+    std::string metadata;
 
-struct ColdData
-{
-    ColdData(bool f0, float f1, double f2, std::string&& f3, std::string&& f4)
-        : field0(f0), field1(f1), field2(f2), 
-          field3(std::move(f3)), field4(std::move(f4)) {}
-    bool field0;
-    float field1;
-    double field2;
-    std::string field3;
-    std::string field4;
-};
-
-struct TestClass
-    : public CacheEntry<int, ColdData> 
-{
-    TestClass(): CacheEntry<int, ColdData>(0)
+    uint32_t& getHotData() noexcept
     {
-        initColdData(false, 1.0, 2.0, "Hello", "World");
+        return value;
+    }
+
+    uint32_t const& getHotData() const noexcept
+    {
+        return value;
     }
 };
 
-struct ControlClass
-{
-    ControlClass(): 
-        field0(false), field1(10), 
-        field2(1.0), field3(2.0), 
-        field4("Hello"), field5("World") {}
+struct TestClass : public CacheEntry<uint32_t, std::string> {};
 
-    bool field0;
-    int field1;
-    float field2;
-    double field3;
-    std::string field4;
-    std::string field5;
-};
-
-uint64_t benchmark_test()
-{
-    TestClass* test = new TestClass[NUM_OF_OBJS];
-    auto start = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < NUM_OF_OBJS; i++)
+template <class Data>
+auto generateData() {
+    srand(20240916);
+    std::vector<Data> data(10000000);
+    for (Data& d : data) 
     {
-        test[i].getHotData() = i;
+        d.getHotData() = rand();
     }
-    uint64_t sum = 0;
-    for (size_t i = 0; i < NUM_OF_OBJS; i++)
-    {
-        sum += test[i].getHotData();
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Time spent: " << duration.count() << " ms" << std::endl;
-    delete[] test;
-    return sum;
+    return data;
 }
 
-uint64_t benchmark_control()
-{
-    ControlClass* control = new ControlClass[NUM_OF_OBJS];
-    auto start = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < NUM_OF_OBJS; i++)
+template <class Data>
+void benchmark(const char* const name, const Data& data, const bool print) {
+    std::uint32_t running = 0U;
+    const auto before = std::chrono::system_clock::now();
+
+    for (const auto& d : data)
     {
-        control[i].field1 = i;
+        running += d.getHotData();
     }
-    uint64_t sum = 0;
-    for (size_t i = 0; i < NUM_OF_OBJS; i++)
-    {
-        sum += control[i].field1;
+
+    const auto after = std::chrono::system_clock::now();
+
+    if (print) {
+        std::cout << name << " took " << (after - before).count() << "ns and the result is " 
+                  << running << std::endl;
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Time spent: " << duration.count() << " ms" << std::endl;
-    delete[] control;
-    return sum;
 }
 
-int main(int argc, char* argv[])
-{
-    uint64_t res;
-    if (strcmp(argv[0], "test") == 0)
-    {
-        res = benchmark_test();
-    }
-    else 
-    {
-        res = benchmark_control();
-    }
+int main() {
+    const auto control  = generateData<ControlClass>();
+    const auto test = generateData<TestClass>();
 
-    std::cout << "Result: " << res << std::endl;
+    benchmark("With cold data in-line (original) ", control, false);
+    benchmark("With cold data in-line (original) ", control, true);
+
+    benchmark("With CacheEntry                   ", test, false);
+    benchmark("With CacheEntry                   ", test, true);
 
     return 0;
 }

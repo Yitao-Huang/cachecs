@@ -24,6 +24,8 @@ int main()
 {
     TestClass t;
 
+    assert(sizeof(t) == sizeof(int));
+
     assert(t.getHotData() == 10);
     t.getHotData() = 20;
     assert(t.getHotData() == 20);
