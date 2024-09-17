@@ -1,5 +1,6 @@
 #include <cassert>
 #include <string>
+#include <utility>
 #include "../src/CacheEntry.h"
 
 
@@ -20,22 +21,37 @@ public:
     TestClass(): CacheEntry<int, ColdData>(10) {}
 };
 
+class TestClassCRTP
+    : public CacheEntryExternal<TestClassCRTP, ColdData> 
+{
+public:
+    template <class... Args>
+    TestClassCRTP(Args&&... args): CacheEntryExternal(std::forward<Args>(args)...) {}
+
+    int value = 10;
+};
+
 int main()
 {
-    TestClass t;
+    TestClass t0;
 
-    assert(sizeof(t) == sizeof(int));
+    assert(sizeof(t0) == sizeof(int));
 
-    assert(t.getHotData() == 10);
-    t.getHotData() = 20;
-    assert(t.getHotData() == 20);
+    assert(t0.getHotData() == 10);
+    t0.getHotData() = 20;
+    assert(t0.getHotData() == 20);
 
-    t.initColdData(false, 1.0, 2.0, "Hello World");
-    assert(t.getColdData().field0 == false);
-    assert(t.getColdData().field3 == "Hello World");
+    t0.initColdData(false, 1.0, 2.0, "Hello World");
+    assert(t0.getColdData().field0 == false);
+    assert(t0.getColdData().field3 == "Hello World");
 
-    t.getColdData().field1 = 3.0;
-    assert(t.getColdData().field1 == 3.0);
+    t0.getColdData().field1 = 3.0;
+    assert(t0.getColdData().field1 == 3.0);
+
+    TestClassCRTP t1(false, 1.0, 2.0, "Hello World");
+    assert(t1.getHotData().value == 10);
+    t1.getHotData().value = 20;
+    assert(t1.getHotData().value == 20);
 
     return 0;
 }

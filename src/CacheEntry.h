@@ -59,3 +59,54 @@ public:
         return hotData;
     }
 };
+
+/* Use CRTP to enable cold data init in ctor */
+template <class HotData, class ColdData>
+class CacheEntryExternal
+{
+    inline static std::unordered_map<CacheEntryExternal const*, std::unique_ptr<ColdData>> coldDataMap;
+
+public:
+    template <class... Args>
+    CacheEntryExternal(Args&&... args)
+    {
+        coldDataMap[this] = std::make_unique<ColdData>(std::forward<Args>(args)...);
+    }
+
+    ~CacheEntryExternal()
+    {
+        coldDataMap.erase(this);
+    }
+
+    explicit CacheEntryExternal(CacheEntryExternal&& other)
+    { 
+        (*this) = std::move(other); 
+    }
+    
+    CacheEntryExternal& operator=(CacheEntryExternal&& other) 
+    {
+        coldDataMap[this] = std::move(coldDataMap[&other]);
+        coldDataMap.erase(&other);
+        return *this;
+    }
+
+    ColdData& getColdData() noexcept
+    {
+        return *coldDataMap[this];
+    }
+
+    ColdData const& getColdData() const noexcept
+    {
+        return *coldDataMap[this];
+    }
+
+    HotData& getHotData() noexcept
+    {
+        return *static_cast<HotData*>(this);
+    }
+
+    HotData const& getHotData() const noexcept
+    {
+        return *static_cast<HotData*>(this);
+    }
+};
