@@ -9,7 +9,7 @@ struct ControlClass
 };
 
 struct TestClass 
-    : public CacheEntryExternal<TestClass, std::string> 
+    : public CacheEntry<std::string> 
 {
     uint32_t value;
 };
